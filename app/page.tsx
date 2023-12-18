@@ -1,21 +1,16 @@
 import Image from "next/image";
 import DayState from "@/components/DayState";
 import Link from "next/link";
+import { kv } from "@vercel/kv";
+import { deleteHabit } from "./actions";
+import DeleteButton from "@/components/DeleteButton";
 
-export default function Home() {
-  const habits = {
-    "beber água": {
-      "2023-12-14": true,
-      "2023-12-15": false,
-      "2023-12-16": true,
-      "2023-12-17": false,
-    },
-    "estudar programação": {
-      "2023-12-14": true,
-      "2023-12-15": false,
-      "2023-12-16": true,
-    },
-  };
+type Habits = {
+  [habit: string]: Record<string, boolean>;
+} | null;
+
+export default async function Home() {
+  const habits: Habits = await kv.hgetall("habits");
 
   const today = new Date();
   const todayWeekDay = today.getDay();
@@ -24,6 +19,17 @@ export default function Home() {
   const sortedWeekDays = weekDays
     .slice(todayWeekDay + 1)
     .concat(weekDays.slice(0, todayWeekDay + 1));
+
+  const last7Days = weekDays
+    .map((_, index) => {
+      const date = new Date();
+      date.setDate(date.getDate() - index);
+
+      return date.toISOString().slice(0, 10);
+    })
+    .reverse();
+
+  console.log(last7Days);
 
   return (
     <main className="container relative flex-col gap-8 px-4 pt-16">
@@ -34,32 +40,26 @@ export default function Home() {
           </h1>
         ))}
       {habits != null &&
-        Object.entries(habits).map(([habit, habitStrick]) => (
+        Object.entries(habits).map(([habit, habitStreak]) => (
           <div key={habit} className="flex flex-col gap-2">
             <div className="flex justify-between items-center">
               <span className="text-xl font-sans text-white font-light">
                 {habit}
               </span>
-              <button>
-                <Image
-                  src="images/delete-icon.svg"
-                  alt="Botão de delete"
-                  width={25}
-                  height={25}
-                />
-              </button>
+              <DeleteButton habit={habit} />
             </div>
-            <section className="grid grid-cols-7 bg-neutral-800 rounded-md p-2">
-              {sortedWeekDays.map((day) => (
-                <div key={day} className="flex flex-col last:font-bold">
-                  <span className="text-xs font-sans text-white text-center">
-                    {day}
-                  </span>
-                  {/* day state */}
-                  <DayState day={true} />
-                </div>
-              ))}
-            </section>
+            <Link href={`habito/${habit}`}>
+              <section className="grid grid-cols-7 bg-neutral-800 rounded-md p-2">
+                {sortedWeekDays.map((day, index) => (
+                  <div key={day} className="flex flex-col last:font-bold">
+                    <span className="text-xs font-sans text-white text-center">
+                      {day}
+                    </span>
+                    <DayState day={habitStreak[last7Days[index]]} />
+                  </div>
+                ))}
+              </section>
+            </Link>
           </div>
         ))}
       <Link
